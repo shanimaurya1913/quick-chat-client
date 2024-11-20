@@ -2,8 +2,11 @@ import React from "react";
 import { Link } from "react-router-dom";
 import { signupUser } from "../../apiCalls/auth";
 import toast from "react-hot-toast";
+import { useDispatch } from "react-redux";
+import { hideLoader, showLoader } from "../../redux/loaderSlice";
 
 export default function Signup() {
+  const dispatch = useDispatch();
   const [user, setUser] = React.useState({
     firstname: "",
     lastname: "",
@@ -15,13 +18,16 @@ export default function Signup() {
     e.preventDefault();
     let resp = null;
     try {
+      dispatch(showLoader());
       resp = await signupUser(user);
+      dispatch(hideLoader());
       if (resp.success) {
         toast.success(resp.message);
       } else {
         toast.error(resp.message);
       }
     } catch (error) {
+      dispatch(hideLoader());
       toast.error(resp.message);
     }
   };
