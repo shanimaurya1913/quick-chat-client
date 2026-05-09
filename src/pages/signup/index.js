@@ -1,5 +1,5 @@
 import React from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { signupUser } from "../../apiCalls/auth";
 import toast from "react-hot-toast";
 import { useDispatch } from "react-redux";
@@ -7,6 +7,7 @@ import { hideLoader, showLoader } from "../../redux/loaderSlice";
 
 export default function Signup() {
   const dispatch = useDispatch();
+  const navigate = useNavigate();
   const [user, setUser] = React.useState({
     firstname: "",
     lastname: "",
@@ -23,6 +24,13 @@ export default function Signup() {
       dispatch(hideLoader());
       if (resp.success) {
         toast.success(resp.message);
+        setUser({
+          firstname: "",
+          lastname: "",
+          email: "",
+          password: "",
+        });
+        navigate("/login");
       } else {
         toast.error(resp.message);
       }
