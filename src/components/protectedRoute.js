@@ -67,6 +67,7 @@ export default function ProtectedRoute({ children }) {
     } else {
       nevigate("/login");
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return <div>{children}</div>;

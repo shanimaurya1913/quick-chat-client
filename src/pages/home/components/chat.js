@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/exhaustive-deps, jsx-a11y/img-redundant-alt */
 import { useDispatch, useSelector } from "react-redux";
 import { createNewMessage, getAllMessages } from "../../../apiCalls/message";
 import { hideLoader, showLoader } from "../../../redux/loaderSlice";
@@ -5,11 +6,12 @@ import toast from "react-hot-toast";
 import { useEffect, useState } from "react";
 import { clearUnreadMessageCount } from "./../../../apiCalls/chat";
 import moment from "moment";
-// import store from "./../../../redux/store";
+import store from "./../../../redux/store";
 // import { setAllChats, setSelectedChat } from "../../../redux/usersSlice";
 import EmojiPicker from "emoji-picker-react";
+import { setAllChats, setSelectedChat } from "../../../redux/userSlice";
 
-function ChatArea({}) {
+function ChatArea({ socket }) {
   const dispatch = useDispatch();
   const { selectedChat, user, allChats } = useSelector(
     (state) => state.userReducer
@@ -30,12 +32,12 @@ function ChatArea({}) {
         image: image,
       };
 
-      // socket.emit('send-message', {
-      //     ...newMessage,
-      //     members: selectedChat.members.map(m => m._id),
-      //     read: false,
-      //     createdAt: moment().format("YYYY-MM-DD HH:mm:ss")
-      // })
+      socket.emit("send-message", {
+        ...newMessage,
+        members: selectedChat.members.map((m) => m._id),
+        read: false,
+        createdAt: moment().format("YYYY-MM-DD HH:mm:ss"),
+      });
 
       const response = await createNewMessage(newMessage);
 
@@ -78,19 +80,20 @@ function ChatArea({}) {
 
   const clearUnreadMessages = async () => {
     try {
-      // socket.emit('clear-unread-messages', {
-      //     chatId: selectedChat._id,
-      //     members: selectedChat.members.map(m => m._id)
-      // })
+      socket.emit("clear-unread-messages", {
+        chatId: selectedChat._id,
+        members: selectedChat.members.map((m) => m._id),
+      });
       const response = await clearUnreadMessageCount(selectedChat._id);
 
       if (response.success) {
-        allChats.map((chat) => {
+        const updatedChats = allChats.map((chat) => {
           if (chat._id === selectedChat._id) {
             return response.data;
           }
           return chat;
         });
+        dispatch(setAllChats(updatedChats));
       }
     } catch (error) {
       toast.error(error.message);
@@ -108,7 +111,9 @@ function ChatArea({}) {
 
   const sendImage = async (e) => {
     const file = e.target.files[0];
-    const reader = new FileReader(file);
+    if (!file) return;
+
+    const reader = new FileReader();
     reader.readAsDataURL(file);
 
     reader.onloadend = async () => {
@@ -122,71 +127,83 @@ function ChatArea({}) {
       clearUnreadMessages();
     }
 
-    // socket.off('receive-message').on('receive-message', (message) => {
-    //     const selectedChat = store.getState().userReducer.selectedChat;
-    //     if(selectedChat._id === message.chatId){
-    //         setAllMessages(prevmsg => [...prevmsg, message]);
-    //     }
+    socket.off("receive-message").on("receive-message", (message) => {
+      const selectedChat = store.getState().userReducer.selectedChat;
+      if (selectedChat._id === message.chatId) {
+        setAllMessages((prevmsg) => [...prevmsg, message]);
+      }
 
-    //     if(selectedChat._id === message.chatId && message.sender !== user._id){
-    //         clearUnreadMessages();
-    //     }
-    // })
+      if (selectedChat._id === message.chatId && message.sender !== user._id) {
+        clearUnreadMessages();
+      }
+    });
 
-    // socket.on('message-count-cleared', data => {
-    //     const selectedChat = store.getState().userReducer.selectedChat;
-    //     const allChats = store.getState().userReducer.allChats;
+    socket.off("message-count-cleared").on("message-count-cleared", (data) => {
+      const selectedChat = store.getState().userReducer.selectedChat;
+      const allChats = store.getState().userReducer.allChats;
 
-    //     if(selectedChat._id === data.chatId){
-    //         //UPDATING UNREAD MESSAGE COUNT IN CHAT OBJECT
-    //         const updatedChats = allChats.map(chat => {
-    //             if(chat._id === data.chatId){
-    //                 return { ...chat, unreadMessageCount: 0}
-    //             }
-    //             return chat;
-    //         })
-    //         dispatch(setAllChats(updatedChats));
+      if (selectedChat._id === data.chatId) {
+        //UPDATING UNREAD MESSAGE COUNT IN CHAT OBJECT
+        const updatedChats = allChats.map((chat) => {
+          if (chat._id === data.chatId) {
+            return { ...chat, unreadMessageCount: 0 };
+          }
+          return chat;
+        });
+        dispatch(setAllChats(updatedChats));
 
-    //         //UPDATING READ PROPRTY IN MESSAGE OBJECT
-    //         setAllMessages(prevMsgs => {
-    //             return prevMsgs.map(msg => {
-    //                 return {...msg, read: true}
-    //             })
-    //         })
-    //     }
-    // })
+        //UPDATING READ PROPRTY IN MESSAGE OBJECT
+        setAllMessages((prevMsgs) => {
+          return prevMsgs.map((msg) => {
+            return { ...msg, read: true };
+          });
+        });
+      }
+    });
 
-    // socket.on('started-typing', (data) => {
-    //     setData(data);
-    //     if(selectedChat._id === data.chatId && data.sender !== user._id){
-    //         setIsTyping(true);
-    //         setTimeout(() => {
-    //             setIsTyping(false);
-    //         }, 2000)
-    //     }
-    // })
+    socket.off("started-typing").on("started-typing", (data) => {
+      setData(data);
+      if (selectedChat._id === data.chatId && data.sender !== user._id) {
+        setIsTyping(true);
+        setTimeout(() => {
+          setIsTyping(false);
+        }, 2000);
+      }
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedChat]);
 
   useEffect(() => {
     const msgContainer = document.getElementById("main-chat-area");
-    msgContainer.scrollTop = msgContainer.scrollHeight;
+    if (msgContainer) {
+      msgContainer.scrollTop = msgContainer.scrollHeight;
+    }
   }, [allMessages, isTyping]);
 
   return (
     <>
       {selectedChat && (
         <div className="app-chat-area">
-          <div className="app-chat-area-header">{formatName(selectedUser)}</div>
+          <div className="app-chat-area-header">
+            <button
+              className="mobile-chat-back-btn"
+              type="button"
+              onClick={() => dispatch(setSelectedChat(null))}
+              aria-label="Back to chats"
+            >
+              <i className="fa fa-arrow-left" aria-hidden="true"></i>
+            </button>
+            <span>{formatName(selectedUser)}</span>
+          </div>
 
           <div className="main-chat-area" id="main-chat-area">
             {allMessages.map((msg) => {
               const isCurrentUserSender = msg.sender === user._id;
-              console.log("isCurrentUserSender", isCurrentUserSender);
 
               return (
                 <div
                   className="message-container"
-                  key={msg.sender}
+                  key={msg._id || `${msg.sender}-${msg.createdAt}`}
                   style={
                     isCurrentUserSender
                       ? { justifyContent: "end" }
@@ -206,9 +223,8 @@ function ChatArea({}) {
                         {msg.image && (
                           <img
                             src={msg.image}
-                            alt="image"
-                            height="120"
-                            width="120"
+                            alt=""
+                            className="message-image"
                           ></img>
                         )}
                       </div>
@@ -265,11 +281,11 @@ function ChatArea({}) {
               value={message}
               onChange={(e) => {
                 setMessage(e.target.value);
-                // socket.emit('user-typing', {
-                //     chatId: selectedChat._id,
-                //     members: selectedChat.members.map(m => m._id),
-                //     sender: user._id
-                // })
+                socket.emit("user-typing", {
+                  chatId: selectedChat._id,
+                  members: selectedChat.members.map((m) => m._id),
+                  sender: user._id,
+                });
               }}
             />
 

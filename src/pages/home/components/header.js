@@ -1,29 +1,36 @@
 import { useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 
-function Header() {
+function Header({ socket }) {
   const { user } = useSelector((state) => state.userReducer);
 
   const navigate = useNavigate();
   function getFullname() {
+    if (!user?.firstname || !user?.lastname) {
+      return "";
+    }
+
     let fname =
-      user?.firstname.at(0).toUpperCase() +
-      user?.firstname.slice(1).toLowerCase();
+      user.firstname.at(0).toUpperCase() + user.firstname.slice(1).toLowerCase();
     let lname =
-      user?.lastname.at(0).toUpperCase() +
-      user?.lastname.slice(1).toLowerCase();
+      user.lastname.at(0).toUpperCase() + user.lastname.slice(1).toLowerCase();
     return fname + " " + lname;
   }
 
   function getInitials() {
-    let f = user?.firstname.toUpperCase()[0];
-    let l = user?.lastname.toUpperCase()[0];
+    if (!user?.firstname || !user?.lastname) {
+      return "";
+    }
+
+    let f = user.firstname.toUpperCase()[0];
+    let l = user.lastname.toUpperCase()[0];
     return f + l;
   }
 
   const logout = () => {
     localStorage.removeItem("token");
     navigate("/login");
+    socket.emit("user-offline", user._id);
   };
 
   return (

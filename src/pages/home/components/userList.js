@@ -1,12 +1,13 @@
 import moment from "moment";
-import React from "react";
+import React, { useEffect } from "react";
 import toast from "react-hot-toast";
 import { useDispatch, useSelector } from "react-redux";
 import { hideLoader, showLoader } from "../../../redux/loaderSlice";
 import { setAllChats, setSelectedChat } from "../../../redux/userSlice";
 import { createNewChat } from "../../../apiCalls/chat";
+import store from "../../../redux/store";
 
-export default function UserList({ searchKey }) {
+export default function UserList({ searchKey, socket, onlineUser }) {
   const {
     allUsers,
     allChats,
@@ -31,7 +32,7 @@ export default function UserList({ searchKey }) {
         dispatch(setSelectedChat(newChat));
       }
     } catch (error) {
-      toast.error(response.message);
+      toast.error(error.message);
       dispatch(hideLoader());
     }
   };
@@ -63,6 +64,37 @@ export default function UserList({ searchKey }) {
       user.lastname?.at(0).toUpperCase() + user.lastname.slice(1).toLowerCase();
     return fname + " " + lname;
   }
+
+  useEffect(() => {
+    socket.off("set-message-count").on("set-message-count", (message) => {
+      const selectedChat = store.getState().userReducer.selectedChat;
+      let allChats = store.getState().userReducer.allChats;
+
+      if (selectedChat?._id !== message.chatId) {
+        const updatedchats = allChats.map((chat) => {
+          if (chat._id === message.chatId) {
+            return {
+              ...chat,
+              unreadMessageCount: (chat?.unreadMessageCount || 0) + 1,
+              lastMessage: message,
+            };
+          }
+          return chat;
+        });
+        allChats = updatedchats;
+      }
+      //1. FIND THE LATEST CHAT
+      const latestChat = allChats.find((chat) => chat._id === message.chatId);
+
+      //2. GET ALL OTHER CHATS
+      const otherChats = allChats.filter((chat) => chat._id !== message.chatId);
+
+      //3. CREATE A NEW ARRAY LATEST CHA ON TOP & THN OTHER CHATS
+      allChats = [latestChat, ...otherChats];
+
+      dispatch(setAllChats(allChats));
+    });
+  }, [dispatch, socket]);
 
   const getLastMessageTimeStamp = (userId) => {
     const chat = allChats.find((chat) =>
@@ -144,11 +176,11 @@ export default function UserList({ searchKey }) {
                 src={user.profilePic}
                 alt="Profile Pic"
                 className="user-profile-image"
-                // style={
-                //   onlineUser.includes(user._id)
-                //     ? { border: "#82e0aa 3px solid" }
-                //     : {}
-                // }
+                style={
+                  onlineUser.includes(user._id)
+                    ? { border: "#82e0aa 3px solid" }
+                    : {}
+                }
               />
             )}
 
@@ -159,11 +191,11 @@ export default function UserList({ searchKey }) {
                     ? "user-selected-avatar"
                     : "user-default-avatar"
                 }
-                // style={
-                //   onlineUser.includes(user._id)
-                //     ? { border: "#82e0aa 3px solid" }
-                //     : {}
-                // }
+                style={
+                  onlineUser.includes(user._id)
+                    ? { border: "#82e0aa 3px solid" }
+                    : {}
+                }
               >
                 {user.firstname.charAt(0).toUpperCase() +
                   user.lastname.charAt(0).toUpperCase()}
@@ -187,7 +219,10 @@ export default function UserList({ searchKey }) {
               <div className="user-start-chat">
                 <button
                   className="user-start-chat-btn"
-                  onClick={() => startNewChat(user._id)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    startNewChat(user._id);
+                  }}
                 >
                   Start Chat
                 </button>

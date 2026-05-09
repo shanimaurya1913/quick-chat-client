@@ -28,7 +28,7 @@ export default function Signup() {
       }
     } catch (error) {
       dispatch(hideLoader());
-      toast.error(resp.message);
+      toast.error(error.message);
     }
   };
 

@@ -8,6 +8,7 @@ export default function Search({ searchKey, setSearchKey }) {
         value={searchKey}
         onChange={(e) => setSearchKey(e.target.value)}
         className="user-search-text"
+        placeholder="Search chats"
       />
       <i className="fa fa-search user-search-btn" aria-hidden="true"></i>
     </div>

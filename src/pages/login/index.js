@@ -28,7 +28,7 @@ export default function Login() {
       }
     } catch (error) {
       dispatch(hideLoader());
-      toast.error(resp.message);
+      toast.error(error.message);
     }
   };
   return (
